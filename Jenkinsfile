@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     // maan lo current version ye hai
-                    def currentVersion = "26.01.00.00.01"
+                    def currentVersion = "26.01.00.00.03"
                     echo "Old Version: ${currentVersion}"
 
                     def parts = currentVersion.split('\\.')
