@@ -33,7 +33,7 @@ pipeline {
 
                     def buildNo = sh(
                         script: """
-                        psql -U postgres -d versiondb -t -A -c "
+                        sudo psql -U postgres -d versiondb -t -A -c "
                         INSERT INTO version_store (service, year, month, build)
                         VALUES ('${SERVICE_NAME}', '${YEAR}', '${MONTH}', 1)
                         ON CONFLICT (service, year, month)
