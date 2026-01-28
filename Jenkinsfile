@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'jenkins-agent' }
+    agent any
 
     environment {
         MICROSERVICE = 'EnfiniteCBS_UI'
