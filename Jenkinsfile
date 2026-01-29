@@ -1,69 +1,169 @@
 pipeline {
+
     agent any
-
+ 
     environment {
+
         MICROSERVICE = 'EnfiniteCBS_UI'
+
         IMAGE_NAME   = 'test-image'
-    }
+ 
+        // PostgreSQL details
 
+        DB_HOST = '10.150.17.37'
+
+        DB_NAME = 'versiondb'
+
+    }
+ 
     stages {
-
+ 
         stage('Cleanup Workspace') {
-            steps { cleanWs() }
-        }
 
-        stage('Checkout') {
-            steps { checkout scm }
-        }
-
-        stage('Build') {
             steps {
-                sh 'echo "Build step (test only)"'
+
+                cleanWs()
+
             }
+
         }
+ 
+        stage('Checkout Code') {
 
-        stage('Increment Version') {
             steps {
-                script {
-                    // maan lo current version ye hai
-                    def currentVersion = "26.01.00.00.03"
-                    echo "Old Version: ${currentVersion}"
 
-                    def parts = currentVersion.split('\\.')
-                    def next = parts[4].toInteger() + 1
-                    parts[4] = String.format("%02d", next)
+                checkout scm
 
-                    env.NEW_TAG = parts.join('.')
-                    echo "New Version: ${env.NEW_TAG}"
+            }
+
+        }
+ 
+        stage('Build (Dummy)') {
+
+            steps {
+
+                sh 'echo "Build step – placeholder"'
+
+            }
+
+        }
+ 
+        stage('Increment Version from PostgreSQL') {
+
+            steps {
+
+                withCredentials([usernamePassword(
+
+                    credentialsId: 'postgres-creds',
+
+                    usernameVariable: 'DB_USER',
+
+                    passwordVariable: 'DB_PASS'
+
+                )]) {
+
+                    script {
+ 
+                        echo "Incrementing version from PostgreSQL..."
+ 
+                        def buildNo = sh(
+
+                            script: """
+
+                            PGPASSWORD=$DB_PASS psql \
+
+                              -h $DB_HOST \
+
+                              -U $DB_USER \
+
+                              -d $DB_NAME \
+
+                              -t -A \
+
+                              -c "
+
+                              INSERT INTO version_store (service, year, month, build)
+
+                              VALUES ('${MICROSERVICE}', '26', '01', 1)
+
+                              ON CONFLICT (service, year, month)
+
+                              DO UPDATE
+
+                                SET build = version_store.build + 1
+
+                              RETURNING build;
+
+                              "
+
+                            """,
+
+                            returnStdout: true
+
+                        ).trim()
+ 
+                        env.NEW_TAG = "26.01.00.00.${String.format('%02d', buildNo.toInteger())}"
+ 
+                        echo "✅ New Version Generated: ${env.NEW_TAG}"
+
+                    }
+
                 }
-            }
-        }
 
+            }
+
+        }
+ 
         stage('Docker Build (NO PUSH)') {
+
             steps {
-                sh '''
-                  echo "Docker build only"
+
+                sh """
+
+                  echo "Docker build command:"
+
                   echo "docker build -t ${IMAGE_NAME}:${NEW_TAG} ."
-                '''
-            }
-        }
 
+                """
+
+            }
+
+        }
+ 
         stage('Deploy (Dummy)') {
+
             steps {
-                sh '''
-                  echo "Deploying version ${NEW_TAG}"
-                  echo "Test only – no k8s"
-                '''
+
+                sh """
+
+                  echo "Deploying ${IMAGE_NAME}:${NEW_TAG}"
+
+                  echo "Dummy deploy – no k8s yet"
+
+                """
+
             }
+
         }
+
+    }
+ 
+    post {
+
+        success {
+
+            echo "🎉 PIPELINE SUCCESS – Version ${NEW_TAG}"
+
+        }
+
+        failure {
+
+            echo "❌ PIPELINE FAILED"
+
+        }
+
     }
 
-    post {
-        success {
-            echo "SUCCESS with version ${NEW_TAG}"
-        }
-        failure {
-            echo "FAILED"
-        }
-    }
 }
+
+ 
