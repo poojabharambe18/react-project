@@ -72,11 +72,11 @@ pipeline {
 
                             PGPASSWORD=$DB_PASS psql \
 
-                              -h $DB_HOST \
+                              -h 10.150.17.37 \
 
                               -U $DB_USER \
 
-                              -d $DB_NAME \
+                              -d versiondb \
 
                               -t -A \
 
