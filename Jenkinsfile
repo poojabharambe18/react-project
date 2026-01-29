@@ -1,12 +1,9 @@
 pipeline {
-
     agent any
 
     environment {
         MICROSERVICE = 'EnfiniteCBS_UI'
         IMAGE_NAME   = 'test-image'
-
-        // PostgreSQL details
         DB_HOST = '10.150.17.37'
         DB_NAME = 'versiondb'
     }
@@ -40,33 +37,27 @@ pipeline {
                         passwordVariable: 'DB_PASS'
                     )
                 ]) {
+                    script {
+                        def buildNo = sh(
+                            returnStdout: true,
+                            script: '''
+                                export PGHOST="10.150.17.37"
+                                export PGDATABASE="versiondb"
+                                export PGUSER="$DB_USER"
+                                export PGPASSWORD="$DB_PASS"
 
-                    withEnv([
-                        "PGHOST=${DB_HOST}",
-                        "PGDATABASE=${DB_NAME}"
-                    ]) {
+                                psql -t -A -c "
+                                    INSERT INTO version_store (service, year, month, build)
+                                    VALUES ('EnfiniteCBS_UI', '26', '01', 1)
+                                    ON CONFLICT (service, year, month)
+                                    DO UPDATE SET build = version_store.build + 1
+                                    RETURNING build;
+                                "
+                            '''
+                        ).trim()
 
-                        script {
-
-                            def buildNo = sh(
-                                returnStdout: true,
-                                script: '''
-                                    export PGPASSWORD="$DB_PASS"
-                                    export PGUSER="$DB_USER"
-
-                                    psql -t -A -c "
-                                        INSERT INTO version_store (service, year, month, build)
-                                        VALUES ('EnfiniteCBS_UI', '26', '01', 1)
-                                        ON CONFLICT (service, year, month)
-                                        DO UPDATE SET build = version_store.build + 1
-                                        RETURNING build;
-                                    "
-                                '''
-                            ).trim()
-
-                            env.NEW_TAG = "26.01.00.00.${String.format('%02d', buildNo.toInteger())}"
-                            echo "✅ New Version Generated: ${env.NEW_TAG}"
-                        }
+                        env.NEW_TAG = "26.01.00.00.${String.format('%02d', buildNo.toInteger())}"
+                        echo "✅ New Version Generated: ${env.NEW_TAG}"
                     }
                 }
             }
@@ -74,19 +65,19 @@ pipeline {
 
         stage('Docker Build (NO PUSH)') {
             steps {
-                sh """
+                sh '''
                     echo "Docker build command:"
                     echo "docker build -t ${IMAGE_NAME}:${NEW_TAG} ."
-                """
+                '''
             }
         }
 
         stage('Deploy (Dummy)') {
             steps {
-                sh """
+                sh '''
                     echo "Deploying ${IMAGE_NAME}:${NEW_TAG}"
                     echo "Dummy deploy – no k8s yet"
-                """
+                '''
             }
         }
     }
