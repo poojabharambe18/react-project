@@ -46,15 +46,13 @@ pipeline {
                                 export PGUSER="$DB_USER"
                                 export PGPASSWORD="$DB_PASS"
 
-                                SQL_COMMAND="
+                                psql -t -A <<EOF
                                     INSERT INTO version_store (service, year, month, build)
                                     VALUES ('EnfiniteCBS_UI', '26', '01', 1)
                                     ON CONFLICT (service, year, month)
                                     DO UPDATE SET build = version_store.build + 1
                                     RETURNING build;
-                                "
-
-                                psql -t -A -c "$SQL_COMMAND"
+                                EOF
                             '''
                         ).trim()
 
